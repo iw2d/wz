@@ -194,8 +194,7 @@ export class WzReader {
             case WZ_PROPERTY_TYPE.CANVAS: {
                 buffer.addOffset(1);
                 let properties;
-                const hasProperties = buffer.getInt8() == 1;
-                if (hasProperties) {
+                if (buffer.getUint8() == 1) {
                     buffer.addOffset(2);
                     properties = new WzListProperty(this.readListItems(image, buffer));
                 } else {
@@ -275,8 +274,12 @@ export class WzReader {
                     break;
                 }
                 case 20: {
-                    const longValue = buffer.getInt64();
-                    items.set(itemName, longValue);
+                    const value = buffer.getInt8();
+                    if (value === -128) {
+                        items.set(itemName, buffer.getInt64());
+                    } else {
+                        items.set(itemName, value);
+                    }
                     break;
                 }
                 case 4: {
