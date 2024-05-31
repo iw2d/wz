@@ -76,15 +76,15 @@ export class WzBuffer {
         return value;
     }
 
-    getArray(length) {
-        const array = this.createSlice(this.offset, length);
+    getSlice(length) {
+        const slice = this.createSlice(this.offset, length);
         this.offset += length;
-        return array;
+        return slice;
     }
 
     createSlice(offset, length) {
         const index = this.view.byteOffset + offset;
-        return new Uint8Array(this.view.buffer.slice(index, index + length));
+        return new DataView(this.view.buffer, index, length);
     }
 
     static fromArrayBuffer(data, offset) {

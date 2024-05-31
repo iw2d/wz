@@ -16,6 +16,15 @@ export const WZ_EMPTY_IV = new Uint8Array([0, 0, 0, 0]);
 export const WZ_PKG1_HEADER = 0x31474B50;
 export const WZ_OFFSET_CONSTANT = 0x581C3F6D;
 
+export const WZ_PROPERTY_TYPE = {
+    LIST: 'Property',
+    CANVAS: 'Canvas',
+    VECTOR: 'Shape2D#Vector2D',
+    CONVEX: 'Shape2D#Convex2D',
+    SOUND: 'Sound_DX8',
+    UOL: 'UOL'
+};
+
 export const WZ_SOUND_HEADER = new Uint8Array([
     0x02,
     0x83, 0xEB, 0x36, 0xE4, 0x4F, 0x52, 0xCE, 0x11, 0x9F, 0x53, 0x00, 0x20, 0xAF, 0x0B, 0xA7, 0x70,

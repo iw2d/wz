@@ -1,13 +1,11 @@
-import { WZ_OFFSET_CONSTANT, WZ_PKG1_HEADER, WZ_SOUND_HEADER } from './constants.js';
 import { WzBuffer } from './buffer.js';
+import { WzCrypto } from './crypto.js';
+import { WzString } from './string.js';
 import { WzPackage } from './package.js';
 import { WzDirectory } from './directory.js';
 import { WzImage } from './image.js';
 import { WzCanvasProperty, WzConvexProperty, WzListProperty, WzSoundProperty, WzUolProperty, WzVectorProperty } from './property.js';
-import { WzCrypto } from './crypto.js';
-
-const ASCII_DECODER = new TextDecoder('us-ascii');
-const UTF_16_DECODER = new TextDecoder('utf-16le');
+import { WZ_OFFSET_CONSTANT, WZ_PKG1_HEADER, WZ_PROPERTY_TYPE, WZ_SOUND_HEADER } from './constants.js';
 
 function rotateLeft(value, distance) {
     return (value << distance) | (value >>> (32 - distance));
@@ -64,18 +62,16 @@ export class WzReader {
                 length = -length;
             }
             if (length > 0) {
-                const array = buffer.getArray(length);
-                this.crypto.cryptAscii(array);
-                return ASCII_DECODER.decode(array);
+                const view = buffer.getSlice(length);
+                return new WzString(view, this.crypto, true);
             }
         } else if (length > 0) {
             if (length === 127) {
                 length = buffer.getInt32();
             }
             if (length > 0) {
-                const array = buffer.getArray(length * 2); // utf-16le
-                this.crypto.cryptUnicode(array);
-                return UTF_16_DECODER.decode(array);
+                const view = buffer.getSlice(length * 2);
+                return new WzString(view, this.crypto, false);
             }
         }
         return '';
@@ -98,7 +94,7 @@ export class WzReader {
                 return string;
             }
             default: {
-                throw `Unknown string block type ${stringType}`;
+                throw `Unknown string block type : ${stringType}`;
             }
         }
     }
@@ -163,7 +159,7 @@ export class WzReader {
                     break;
                 }
                 default: {
-                    throw `Unknown directory child type ${childType}`;
+                    throw `Unknown directory child type : ${childType}`;
                 }
             }
             const childSize = this.readCompressedInt(buffer);
@@ -190,12 +186,12 @@ export class WzReader {
 
     readProperty(image, buffer) {
         const propertyType = this.readStringBlock(image, buffer);
-        switch (propertyType) {
-            case 'Property': {
+        switch (this.crypto.getPropertyType(propertyType)) {
+            case WZ_PROPERTY_TYPE.LIST: {
                 buffer.getInt16(); // reserved
                 return new WzListProperty(this.readListItems(image, buffer));
             }
-            case 'Canvas': {
+            case WZ_PROPERTY_TYPE.CANVAS: {
                 buffer.addOffset(1);
                 let properties;
                 const hasProperties = buffer.getInt8() == 1;
@@ -214,15 +210,15 @@ export class WzReader {
                 // Canvas data
                 const dataSize = buffer.getInt32() - 1;
                 buffer.addOffset(1);
-                const data = buffer.getArray(dataSize);
+                const data = buffer.getSlice(dataSize);
                 return new WzCanvasProperty(properties, width, height, format, format2, data);
             }
-            case 'Shape2D#Vector2D': {
+            case WZ_PROPERTY_TYPE.VECTOR: {
                 const x = this.readCompressedInt(buffer);
                 const y = this.readCompressedInt(buffer);
                 return new WzVectorProperty(x, y);
             }
-            case 'Shape2D#Convex2D': {
+            case WZ_PROPERTY_TYPE.CONVEX: {
                 const properties = [];
                 const size = this.readCompressedInt(buffer);
                 for (let i = 0; i < size; i++) {
@@ -230,7 +226,7 @@ export class WzReader {
                 }
                 return new WzConvexProperty(properties);
             }
-            case 'Sound_DX8': {
+            case WZ_PROPERTY_TYPE.SOUND: {
                 buffer.addOffset(1);
                 const dataSize = this.readCompressedInt(buffer);
                 const duration = this.readCompressedInt(buffer);
@@ -241,17 +237,16 @@ export class WzReader {
                 buffer.addOffset(formatSize);
                 // Create slices
                 const header = buffer.createSlice(headerOffset, buffer.getOffset() - headerOffset);
-                const data = buffer.createSlice(buffer.getOffset(), dataSize);
-                buffer.addOffset(dataSize);
+                const data = buffer.getSlice(dataSize);
                 return new WzSoundProperty(header, data);
             }
-            case 'UOL': {
+            case WZ_PROPERTY_TYPE.UOL: {
                 buffer.addOffset(1);
                 const uol = this.readStringBlock(image, buffer);
                 return new WzUolProperty(uol);
             }
             default: {
-                throw `Unhandled property type : ${propertyType}`;
+                throw `Unhandled property type : ${propertyType.toString()}`;
             }
         }
     }
@@ -280,7 +275,7 @@ export class WzReader {
                     break;
                 }
                 case 20: {
-                    const longVzalue = buffer.getInt64();
+                    const longValue = buffer.getInt64();
                     items.set(itemName, longValue);
                     break;
                 }
@@ -315,7 +310,7 @@ export class WzReader {
                     break;
                 }
                 default: {
-                    throw `Unknown property item type ${itemType}`;
+                    throw `Unknown property item type : ${itemType}`;
                 }
             }
         }

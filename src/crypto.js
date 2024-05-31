@@ -1,13 +1,34 @@
 import { createCipheriv } from 'node:crypto';
 
-import { AES_USER_KEY } from './constants.js';
+import { AES_USER_KEY, WZ_PROPERTY_TYPE } from './constants.js';
+import { WzString } from './string.js';
+
 
 const BATCH_SIZE = 1024;
+const TEXT_ENCODER = new TextEncoder();
 
 export class WzCrypto {
     constructor(cipher) {
         this.cipher = cipher;
         this.cipherMask = new Uint8Array();
+        this.propertyNames = {};
+        for (let propertyType in WZ_PROPERTY_TYPE) {
+            // Encrypt property name
+            const data = TEXT_ENCODER.encode(WZ_PROPERTY_TYPE[propertyType]);
+            this.cryptAscii(data);
+            // Create WzString
+            const view = new DataView(data.buffer);
+            this.propertyNames[propertyType] = new WzString(view, this, true);
+        }
+    }
+
+    getPropertyType(string) {
+        for (let propertyType in WZ_PROPERTY_TYPE) {
+            if (this.propertyNames[propertyType].equals(string)) {
+                return WZ_PROPERTY_TYPE[propertyType];
+            }
+        }
+        return null;
     }
 
     cryptAscii(data) {
