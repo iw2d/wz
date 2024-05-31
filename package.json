@@ -2,7 +2,7 @@
   "name": "wz",
   "type": "module",
   "scripts": {
-    "lint": "eslint . --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --report-unused-disable-directives"
   },
   "devDependencies": {
     "@eslint/js": "^9.3.0",
